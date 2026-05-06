@@ -410,23 +410,23 @@ write.csv(
 # =========================
 # 13. Save objects needed for plotting script
 # =========================
-write_csv(clean_table_annotated, "clean_table_annotated.csv")
+#write_csv(clean_table_annotated, "clean_table_annotated.csv")
 
-write_csv(
-  tibble(sample = names(size_factors), size_factor = size_factors),
-  "size_factors.csv"
-)
+#write_csv(
+#  tibble(sample = names(size_factors), size_factor = size_factors),
+#  "size_factors.csv"
+#)
 
-write_csv(
-  tibble(sample = rownames(coldata), coldata),
-  "metadata_deseq2.csv"
-)
+#write_csv(
+#  tibble(sample = rownames(coldata), coldata),
+#  "metadata_deseq2.csv"
+#)
 
 
 # =========================
 # 14. Save diff results
 # =========================
-
+# coef_ it is in log scale !!
 results_final <- glmm_results_df %>%
   mutate(
     # Differences C1 vs DMSO
@@ -434,7 +434,7 @@ results_final <- glmm_results_df %>%
     diff_T2 = coef_GroupT2_C1 - coef_GroupT2_DMSO,
     diff_T3 = coef_GroupT3_C1 - coef_GroupT3_DMSO,
 
-    # Standard errors
+    # Standard errors (It is approximate, it ignores covariance between coefficients)
     se_T1 = sqrt(stderr_GroupT1_C1^2 + stderr_GroupT1_DMSO^2),
     se_T2 = sqrt(stderr_GroupT2_C1^2 + stderr_GroupT2_DMSO^2),
     se_T3 = sqrt(stderr_GroupT3_C1^2 + stderr_GroupT3_DMSO^2),
@@ -451,32 +451,39 @@ results_final <- glmm_results_df %>%
   )
 
 
-#results_final <- results_final %>%
- #mutate(
- #  score = abs(diff_T1) * (pval_T1 < 0.05) +
- #          abs(diff_T2) * (pval_T2 < 0.05) +
- #          abs(diff_T3) * (pval_T3 < 0.05)
- # )
-
-
-
 results_final <- results_final %>%
  mutate(
-   score_directional =
-     diff_T1*(pval_T1<0.05) +
-     diff_T2*(pval_T2<0.05) +
-     diff_T3*(pval_T3<0.05)
+   padj_T1 = p.adjust(pval_T1, method = "BH"),
+   padj_T2 = p.adjust(pval_T2, method = "BH"),
+   padj_T3 = p.adjust(pval_T3, method = "BH")
  )
-
-
+ 
+n_se = 3
 results_final <- results_final %>%
- mutate(
-   direction = case_when(
-     score_directional > 0.5 ~ "Enriched_in_C1",
-     score_directional < -0.5 ~ "Depleted_in_C1",
-     TRUE ~ "Neutral"
-   )
- )
+  mutate(
+    sig_T1 = padj_T1 < 0.05,
+    sig_T2 = padj_T2 < 0.05,
+    sig_T3 = padj_T3 < 0.05,
+
+    score_directional =
+      diff_T1 * sig_T1 +
+      diff_T2 * sig_T2 +
+      diff_T3 * sig_T3,
+
+    se_score = sqrt(
+      se_T1^2 * sig_T1 +
+      se_T2^2 * sig_T2 +
+      se_T3^2 * sig_T3
+    ),
+
+    n_sig = sig_T1 + sig_T2 + sig_T3,
+    
+    direction = case_when( # n_se standard deviations and 2 significant p-values
+      score_directional > n_se * se_score & n_sig >= 2 ~ "Enriched_in_C1",
+      score_directional < -n_se * se_score & n_sig >= 2 ~ "Depleted_in_C1",
+      TRUE ~ "Neutral"
+    )
+  )
 
 results_enriched <- results_final %>%
   filter(direction == "Enriched_in_C1")
@@ -499,3 +506,34 @@ write.csv(
   row.names = FALSE
 )
 
+
+
+# =========================
+# 15. Cleaning Gene ID list for DAVID database
+# =========================
+
+# Read files
+depleted <- read.csv("/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/GLMM_results_depleted.csv")
+enriched <- read.csv("/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/GLMM_results_enriched.csv")
+
+# Unique depleted genes
+depleted_genes <- depleted$gene_ID %>%
+  unique() %>%
+  na.omit()
+
+# Unique enriched genes
+enriched_genes <- enriched$gene_ID %>%
+  unique() %>%
+  na.omit()
+
+# Save depleted list
+writeLines(
+  depleted_genes,
+  "/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/gene_ID_depleted.txt"
+)
+
+# Save enriched list
+writeLines(
+  enriched_genes,
+  "/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/gene_ID_enriched.txt"
+)
