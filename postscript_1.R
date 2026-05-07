@@ -14,7 +14,7 @@ library(tidyr)
 base_dir <- "/home/paula-di-santo/Documents/Post_analysis_meliloti"
 
 # Subdirectories
-sub_dirs <- c("DESeq2", "Glmm", "Intermediate")
+sub_dirs <- c("DESeq2", "Glmm", "Intermediate", "Plotting")
 
 # Create base directory if it doesn't exist
 if (!dir.exists(base_dir)) {
@@ -410,19 +410,20 @@ write.csv(
 # =========================
 # 13. Save objects needed for plotting script
 # =========================
-#write_csv(clean_table_annotated, "clean_table_annotated.csv")
+write.csv(
+  clean_table_annotated,
+  file = file.path(base_dir, "Plotting", "clean_table_annotated.csv")
+)
 
-#write_csv(
-#  tibble(sample = names(size_factors), size_factor = size_factors),
-#  "size_factors.csv"
-#)
+write.csv(
+  tibble(sample = names(size_factors), size_factor = size_factors),
+  file = file.path(base_dir, "Plotting", "size_factors.csv")
+)
 
-#write_csv(
-#  tibble(sample = rownames(coldata), coldata),
-#  "metadata_deseq2.csv"
-#)
-
-
+write.csv(
+  tibble(sample = rownames(coldata), coldata),
+  file = file.path(base_dir, "Plotting", "metadata_deseq2.csv")
+)
 # =========================
 # 14. Save diff results
 # =========================
@@ -513,9 +514,8 @@ write.csv(
 # =========================
 
 # Read files
-depleted <- read.csv("/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/GLMM_results_depleted.csv")
-enriched <- read.csv("/home/paula-di-santo/Documents/Post_analysis_meliloti/Glmm/GLMM_results_enriched.csv")
-
+depleted <- results_depleted
+enriched <- results_enriched
 # Unique depleted genes
 depleted_genes <- depleted$gene_ID %>%
   unique() %>%
