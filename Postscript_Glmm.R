@@ -15,7 +15,7 @@ library(glmmTMB)
 base_dir <- "/home/paula-di-santo/Documents/Post_analysis_meliloti"
 
 # Subdirectories
-sub_dirs <- c("DESeq2", "Glmm", "Intermediate", "Plotting")
+sub_dirs <- c("DESeq2", "Glmm", "Intermediate")
 
 # Create base directory if it doesn't exist
 if (!dir.exists(base_dir)) {
@@ -149,12 +149,15 @@ write_csv(
 # 2d. Create pool-aware feature ID
 # =========================
 clean_table_final <- clean_table_annotated %>%
-  filter(!is.na(gene_ID), !is.na(transposon_set)) %>%
+  filter(
+    !is.na(gene_ID),
+    !is.na(transposon_set),
+    !grepl("intergenic", gene_ID, ignore.case = TRUE)
+  ) %>%
   mutate(
     feature_ID = paste(gene_ID, transposon_set, sep = "__pool_")
   ) %>%
   select(sample, feature_ID, gene_ID, transposon_set, NumReads)
-
 
 # Saving the results
 write_csv(
